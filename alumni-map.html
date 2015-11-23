@@ -1,0 +1,269 @@
+<html>
+  <head>
+  
+  <style>
+      #map_canvas {
+        width: 500px;
+        height: 400px;
+      }
+    </style>
+    <!-- <script src="https://maps.googleapis.com/maps/api/js"></script> -->
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+
+    <script type="text/javascript">
+	$(document).ready(function() {
+		$('.ajaxProgress').hide();
+		$('.success').hide();
+		$('.matching_name').hide()
+		$('.nearby_location').hide()
+	});
+	</script>
+	
+	<script>
+	
+	//haha I need to declare the map variable here to call it later in the ajaxRequest function!
+	var map;
+	var myLatlng = new google.maps.LatLng(19.738571, -72.196125);
+	var marker2;
+	
+  function initialize() {
+    var mapCanvas = document.getElementById('map_canvas');
+    
+    var mapOptions = {
+      center: myLatlng,
+      zoom: 13,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    }
+    map = new google.maps.Map(mapCanvas, mapOptions);
+    
+    
+    var marker = new google.maps.Marker({
+    position: myLatlng,
+    draggable:true,
+    //icon: "{% static "entries/img/purple_MarkerA.png" %}"
+    //title:"Hello World!"
+	});
+
+	// To add the marker to the map, call setMap();
+	marker.setMap(map);
+
+	 google.maps.event.addListener(marker, "dragend", function(){
+        document.getElementById("lat").value=marker.position.lat();
+        document.getElementById("lon").value=marker.position.lng();
+    });
+    
+  }
+  //map.data.loadGeoJson('https://storage.googleapis.com/maps-devrel/google.json');
+  google.maps.event.addDomListener(window, 'load', initialize);
+    
+</script>
+
+	
+	<script type="text/javascript">
+
+    function ajaxRequest() {
+    	$('.ajaxProgress').show();
+    	
+    	//I hard-coded sending Cardiovascular,Dental,Diabetes, and Emergency values 
+    	//simulating as if they were checked by the user
+    	//In a real ver, there would be code that would put only the checkboxes
+    	//that were checked on the form in data:
+    	
+		//builds an array of what checkboxes were checked
+		services_array = [];
+    	$('input[type=checkbox]:checked').each(function() {
+			// Do something interesting
+			console.log($(this).attr("id"));
+			services_array[services_array.length] = $(this).attr("id");
+		});
+    	
+        $.ajax({
+            type: "POST",
+            url: "https://script.google.com/macros/s/AKfycbz9YoTo3ws2ESYgpC_dZipOrjuEl-Nw6GSvATqXxpK3f1EouCI/exec",
+            data: {"entry.1" : name, "entry.3" : email, "entry.4": feed},
+            success: alert($("success"))
+            });
+
+        }
+
+/*s
+        $.ajax({
+            type: "POST",
+            url: "https://docs.google.com/spreadsheets/d/1IDHFHerySV7BvUj1yaFJA3wwAVwLP3UN-av1JXUu9c0/formResponse",
+            //dataType: "JSON",
+            //async: true,
+            data: {
+            	name : $('#organization').val(),
+            	latitude : $('#lat').val(),
+            	longitude : $('#lon').val(),
+            	services : services_array,
+            	//Cardiovascular : $('#Cardiovascular').val(),
+            	//Dental : $('#Dental').val(),
+            	//Diabetes : $('#Diabetes').val(),
+            	//Emergency : $('#Emergency').val(),
+            }
+            data: {"entry.1" : name, "entry.3" : email, "entry.4": feed},
+            success: alert($("success")
+            success: function (json) {
+                //alert(json);
+                //var result = JSON.stringify(json);
+                //alert(result);
+                $('.matching_name').hide()
+                
+                
+                nearby_facilities_json = json['nearby_facilities']
+                
+                matching_facilities = json['matching_facilities'];
+                
+                console.log('testing...')
+                console.log(typeof matching_facilities)
+                
+                //if there are matching facilities with similiar names
+                if (typeof matching_facilities != 'undefined') {
+    				// variable is defined
+    				console.log("should be defined")
+    				$('.matching_name').show();
+    				var matching_facility_string = JSON.stringify(matching_facilities);
+                	//alert(matching_facility_string);
+				
+					var items = [];
+				
+					var key, count = 0;
+					for(key in json.matching_facilities.features) {
+					  if(json.matching_facilities.features.hasOwnProperty(key)) {
+						count++;
+					  }
+					}
+					
+					console.log('count is: ');
+					console.log(count);
+
+					for(var i = 0; i < count; i++){
+						console.log(json.matching_facilities.features[i].properties);
+						items.push('<p>');
+						$.each(json.matching_facilities.features[i].properties, function (key, val) {
+								items.push('<li id="' + key + '">' + key + ': ' + val + '</li>');
+						});
+						
+						//calls create_point function, which creates the point
+						create_point(matching_facilities.features[i].properties.latitude, matching_facilities.features[i].properties.longitude, matching_facilities.features[i]);
+					};
+					//this call is good, looked at: http://stackoverflow.com/questions/13462580/iterating-geojson-object-with-javascript
+					//console.log(json.matching_facilities.features[0])
+				
+					$( "<ul/>", {
+						"class": "my-new-list",
+						html: items.join( "" )
+					  }).appendTo( "body" );
+				
+					$('.ajaxProgress').hide();
+					$('.matching_name').show();
+				
+					$("#output").html(json.type);
+					console.log('success' + json);
+				
+				}
+				
+				//adds the nearby facilities to the map
+				map.data.addGeoJson(nearby_facilities_json);
+				
+				//if there are nearby facilities
+				if (typeof nearby_facilities_json != 'undefined') {
+					$('.ajaxProgress').hide();
+					$('.nearby_location').show();
+				}
+                
+                //not working for some reason
+                //map.data.overrideStyle(map.data.getFeatureById('match'), {icon: "{% static "entries/img/purple_MarkerA.png" %}"});
+                
+                //just create a new marker with same lat lon
+                //console.log(matching_facilities.features[0].properties.latitude)
+                //console.log(matching_facilities.features[0].properties.longitude)
+                
+                function create_point(lat,lon,featureInfo) {
+                	var matching_facility_marker = new google.maps.LatLng(lat,lon);
+                	// To add the marker to the map, use the 'map' property
+                	var matching_marker = new google.maps.Marker({
+						position: matching_facility_marker,
+						title:"Hello World!",
+						//icon: "{% static "entries/img/purple_MarkerA.png" %}"
+					});
+					var contentString = 'pop up box'
+					//https://developers.google.com/maps/documentation/javascript/examples/infowindow-simple
+					var infowindow = new google.maps.InfoWindow({
+      					//content: JSON.stringify(featureInfo)
+      					content: JSON.stringify(featureInfo.properties.provider_name)
+  					});
+  					google.maps.event.addListener(matching_marker, 'click', function() {
+    					infowindow.open(map,matching_marker);
+  					});
+
+					// To add the marker to the map, call setMap();
+					matching_marker.setMap(map);
+                }
+            }
+
+
+        });
+        
+    }
+*/
+
+	</script>
+
+
+</head>
+
+<body>
+
+    <form action= "https://script.google.com/macros/s/AKfycbz9YoTo3ws2ESYgpC_dZipOrjuEl-Nw6GSvATqXxpK3f1EouCI/exec" method="post" name="test_form">
+
+
+    <form onsubmit="return false;">
+        <br>
+        Organization: <input type="text" id = "Name" name="name" style="width: 300px;"><br>
+        <br>
+        Select provided services:
+        <br>
+        <br>
+        <input type="checkbox" id="Cardiovascular" name="Cardiovascular" value="Cardiovascular">Cardiovascular<br>
+        <input type="checkbox" id="Dental" name="Dental" value="Dental">Dental<br>
+        <input type="checkbox" id="Diabetes" name="Diabetes" value="Diabetes">Diabetes<br>
+        <input type="checkbox" id="Emergency" name="Emergency" value="Emergency">Emergency<br>
+        <br>
+        lat: <input id="lat" type="text" name="lat" style="width: 150px;"> lon: <input id="lon" type="text" name="lon" style="width: 150px;"> 
+        <br>
+        <br>
+        <div id="map_canvas"></div>
+        <br>
+
+        <button class="updateButton" onclick="ajaxRequest()">Submit</Button>
+
+        <!--<input type="submit" value="Create new account" />-->
+
+    </form>
+
+    <div id="output">
+    	<div class = "ajaxProgress">
+    		<h3>please wait...</h3>
+    	</div>
+    	<div class = "success">
+    		<h3>Success!</h3>
+    	</div>
+    	<div class = "matching_name">
+    		<h3>At least one entry exists in the database with a similar name. Please verify new entry.</h3>
+    	</div>
+    	<div class = "nearby_location">
+    		<h3>At least existing health facility is within 100 meters from your location. Please verify new entry.</h3>
+    	</div>
+    	
+    </div>
+
+    <br>
+
+</body>
+
+</html>
+
+
